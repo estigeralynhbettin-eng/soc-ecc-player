@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC-ECC | ACI 收敛轨迹播放器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg-deep:      #07090f;
+    --bg-base:      #0c1118;
+    --surface:      #131a26;
+    --surface-2:    #1a2333;
+    --line:         rgba(148, 174, 220, 0.08);
+    --line-strong:  rgba(148, 174, 220, 0.18);
+    --text-1:       #e6ecf5;
+    --text-2:       #98a3b8;
+    --text-3:       #5d6b86;
+    --cyan:         #00d4ff;
+    --cyan-soft:    rgba(0, 212, 255, 0.12);
+    --green:        #00ff9d;
+    --amber:        #ffb020;
+    --red:          #ff3860;
+
+    /* 曲线专属色 */
+    --c-risk:       #94a3b8;
+    --c-total:      #f87171;
+    --c-effective:  #4ade80;
+    --c-entropy:    #c084fc;
+    --c-omega:      #f97316;
+    --c-aci:        #fbbf24;
+    --c-accuracy:   #60a5fa;
+
+    --font-sans: 'Manrope', 'Noto Sans SC', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Noto Sans SC', monospace;
+    --font-cn:   'Noto Sans SC', 'Manrope', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+
+body {
+    background: var(--bg-deep);
+    color: var(--text-1);
+    font-family: var(--font-cn);
+    overflow-x: hidden;
+    min-height: 100vh;
+    background-image:
+        linear-gradient(rgba(148, 174, 220, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 174, 220, 0.025) 1px, transparent 1px),
+        radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.08) 0%, transparent 60%);
+    background-size: 40px 40px, 40px 40px, 100% 100%;
+}
+
+/* ========== 顶栏 ========== */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(7, 9, 15, 0.7);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark {
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--cyan) 0%, #0084ff 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--bg-deep);
+    font-size: 14px;
+    box-shadow: 0 0 24px rgba(0, 212, 255, 0.4);
+}
+.brand-title { font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
+.brand-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+.topbar-right { display: flex; gap: 12px; align-items: center; }
+.live-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(0, 255, 157, 0.12);
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+.live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+.clock {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-2);
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+}
+
+/* ========== 主舞台布局 ========== */
+.stage {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.34fr) minmax(680px, 1fr);
+    gap: 20px;
+    padding: 18px 32px 24px;
+    max-width: 1920px;
+    margin: 0 auto;
+    min-height: calc(100vh - 76px);
+    align-items: start;
+}
+@media (max-width: 1100px) {
+    .topbar {
+        padding: 12px 18px;
+    }
+    .brand-title {
+        font-size: 16px;
+    }
+    .brand-sub {
+        font-size: 9px;
+        letter-spacing: 1px;
+    }
+    .live-pill {
+        padding: 5px 10px;
+        font-size: 9px;
+        letter-spacing: 0.6px;
+    }
+    .clock {
+        display: none;
+    }
+    .stage {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 14px 16px 20px;
+        min-height: auto;
+    }
+    .panel {
+        padding: 16px;
+    }
+    .panel-head {
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+    }
+    .layers-panel {
+        min-height: auto;
+    }
+    .curve-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        flex: unset;
+    }
+    .curve-row {
+        min-width: 0;
+        padding: 10px 11px;
+        gap: 8px;
+    }
+    .curve-name {
+        font-size: 12px;
+    }
+    .curve-sym {
+        font-size: 9px;
+    }
+    .curve-value {
+        min-width: 28px;
+        font-size: 12px;
+    }
+    .curve-swatch {
+        width: 22px;
+    }
+    .curve-tooltip {
+        left: 0;
+        top: calc(100% + 8px);
+        transform: translateY(-4px);
+        width: min(320px, 82vw);
+    }
+    .curve-row:hover .curve-tooltip,
+    .curve-row.show-tip .curve-tooltip {
+        transform: translateY(0);
+    }
+    .layer-note-tooltip {
+        width: min(420px, 82vw);
+    }
+    .now-stage {
+        margin-top: 12px;
+        padding: 12px 14px;
+    }
+    .now-stage-name {
+        font-size: 15px;
+    }
+    .now-stage-desc {
+        font-size: 11px;
+    }
+    .chart-panel {
+        min-height: auto;
+    }
+    #chartSvg {
+        height: 300px;
+        min-height: 300px;
+    }
+    .player {
+        gap: 10px;
+        padding: 10px 12px;
+    }
+    .btn-play {
+        width: 44px;
+        height: 44px;
+    }
+    .btn-reset {
+        width: 34px;
+        height: 34px;
+    }
+    .speed-group {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    .speed-btn {
+        font-size: 11px;
+        padding: 6px 8px;
+    }
+    .timeline-strip {
+        margin-top: 12px;
+        padding: 12px;
+    }
+    .timeline-head {
+        margin-bottom: 10px;
+    }
+    .timeline-stages {
+        gap: 6px;
+    }
+    .tl-stage {
+        padding: 8px 7px;
+    }
+    .tl-stage-letter {
+        font-size: 9px;
+        letter-spacing: 0.4px;
+    }
+    .tl-stage-name {
+        font-size: 11px;
+    }
+}
+
+.panel {
+    background: linear-gradient(180deg, var(--surface) 0%, var(--bg-base) 100%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+.panel:nth-child(2) { animation-delay: 0.1s; }
+
+.layers-panel {
+    overflow: visible;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 118px);
+}
+
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+}
+.panel-title { font-weight: 700; font-size: 16px; letter-spacing: 0.4px; }
+.panel-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* ========== 曲线开关列表 ========== */
+.curve-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+}
+
+.curve-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    position: relative;
+}
+.curve-row:hover {
+    background: rgba(148, 174, 220, 0.05);
+    border-color: var(--line-strong);
+    transform: translateX(2px);
+}
+.curve-row.off { opacity: 0.4; }
+.curve-row.off .curve-name { color: var(--text-3); }
+
+.curve-tooltip {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-6px);
+    width: 300px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(7, 9, 15, 0.96);
+    border: 1px solid var(--line-strong);
+    color: var(--text-2);
+    font-size: 11px;
+    line-height: 1.55;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 20;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.curve-tooltip strong {
+    color: var(--text-1);
+    font-weight: 700;
+}
+.curve-row:hover .curve-tooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+.curve-row.show-tip .curve-tooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+.panel-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.layer-note-trigger {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    background: rgba(0, 212, 255, 0.08);
+    color: var(--cyan);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+}
+.layer-note-tooltip {
+    position: absolute;
+    left: 0;
+    top: 26px;
+    width: 420px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(7, 9, 15, 0.98);
+    border: 1px solid var(--line-strong);
+    color: var(--text-2);
+    font-size: 11px;
+    line-height: 1.55;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 30;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.layer-note-trigger:hover .layer-note-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+}
+.layer-note-tooltip div + div { margin-top: 4px; }
+.layer-note-tooltip strong { color: var(--text-1); }
+
+.curve-swatch {
+    width: 28px; height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    box-shadow: 0 0 8px currentColor;
+}
+.curve-swatch.dotted {
+    background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px);
+    box-shadow: none;
+}
+.curve-swatch.dashed {
+    background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 10px);
+    box-shadow: none;
+}
+.curve-swatch.dashdot {
+    background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 9px, currentColor 9px 11px, transparent 11px 14px);
+    box-shadow: none;
+}
+.curve-swatch.bold { height: 5px; }
+
+.curve-info { flex: 1; min-width: 0; }
+.curve-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+    line-height: 1.3;
+}
+.curve-sym {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 2px;
+}
+
+.curve-value {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: right;
+    min-width: 50px;
+    transition: opacity 0.2s;
+}
+.curve-row.off .curve-value { opacity: 0; }
+
+/* ========== 当前阶段卡片 ========== */
+.now-stage {
+    margin-top: auto;
+    padding: 18px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    border-left: 3px solid var(--cyan);
+}
+.now-stage-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+}
+.now-stage-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.now-stage-progress {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--cyan);
+    font-weight: 700;
+}
+.now-stage-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-1);
+    margin-bottom: 4px;
+}
+.now-stage-desc {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+}
+
+/* ========== 图表区 ========== */
+.chart-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: auto;
+}
+
+.chart-wrap {
+    flex: 0 0 auto;
+    position: relative;
+    background:
+        radial-gradient(ellipse at 50% 30%, rgba(0, 212, 255, 0.03) 0%, transparent 60%);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 14px;
+}
+
+.chart-note-trigger {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    background: rgba(0, 212, 255, 0.08);
+    color: var(--cyan);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+    z-index: 5;
+}
+.chart-note-tooltip {
+    position: absolute;
+    top: 28px;
+    right: 0;
+    width: 340px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(7, 9, 15, 0.96);
+    border: 1px solid var(--line-strong);
+    color: var(--text-2);
+    font-size: 11px;
+    line-height: 1.55;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.chart-note-trigger:hover .chart-note-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#chartSvg {
+    width: 100%;
+    height: min(58vh, 600px);
+    min-height: 500px;
+    display: block;
+}
+
+/* SVG 内样式 */
+.grid-line {
+    stroke: rgba(148, 174, 220, 0.06);
+    stroke-width: 1;
+}
+.axis-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    fill: var(--text-3);
+}
+.axis-label {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text-2);
+}
+.zero-axis {
+    stroke: rgba(148, 174, 220, 0.4);
+    stroke-width: 1.2;
+}
+
+.curve-path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: opacity 0.3s;
+    filter: drop-shadow(0 0 4px currentColor);
+}
+.curve-path.hidden { opacity: 0; }
+
+/* 末端发光小球 */
+.curve-head {
+    transition: opacity 0.3s;
+}
+.curve-head.hidden { opacity: 0; }
+
+/* 阶段标记 */
+.stage-mark {
+    transition: opacity 0.5s ease-out;
+}
+.stage-mark.hidden { opacity: 0; }
+.stage-mark-line {
+    stroke: rgba(148, 174, 220, 0.35);
+    stroke-width: 1.2;
+    stroke-dasharray: 4 4;
+}
+.stage-mark-dot {
+    fill: var(--text-1);
+    stroke: var(--bg-deep);
+    stroke-width: 2;
+}
+.stage-mark-letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--text-1);
+}
+.stage-mark-letter-bg {
+    fill: var(--bg-deep);
+    stroke: var(--line-strong);
+    stroke-width: 1;
+}
+.stage-mark-name {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    fill: var(--text-2);
+}
+
+/* 进度指针 — 垂直扫描线 */
+.scan-line {
+    stroke: rgba(0, 212, 255, 0.5);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+}
+.scan-head {
+    fill: var(--cyan);
+    filter: drop-shadow(0 0 6px var(--cyan));
+}
+
+/* ========== 播放控制条 ========== */
+.player {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.btn-play {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: var(--cyan);
+    border: none;
+    color: var(--bg-deep);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4);
+}
+.btn-play:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.2);
+}
+.btn-play svg { width: 18px; height: 18px; }
+.btn-play .icon-pause { display: none; }
+.btn-play.playing .icon-play { display: none; }
+.btn-play.playing .icon-pause { display: block; }
+
+.btn-reset {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.btn-reset:hover {
+    background: var(--surface);
+    color: var(--text-1);
+    transform: rotate(-180deg);
+}
+.btn-reset svg { width: 16px; height: 16px; }
+
+.btn-loop {
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 19px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    color: var(--text-2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+}
+.btn-loop svg {
+    width: 15px;
+    height: 15px;
+}
+.btn-loop:hover {
+    color: var(--text-1);
+    border-color: rgba(0, 212, 255, 0.35);
+}
+.btn-loop.on {
+    background: var(--cyan-soft);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0, 212, 255, 0.18);
+}
+
+.scrubber-wrap { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.scrubber-times {
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-3);
+    letter-spacing: 1px;
+}
+.scrubber {
+    position: relative;
+    width: 100%;
+    height: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+.scrubber-track {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface-2);
+    overflow: hidden;
+    position: relative;
+}
+.scrubber-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), #0084ff);
+    border-radius: 2px;
+    width: 0%;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+}
+.scrubber-thumb {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    top: 50%;
+    transform: translate(-50%, -50%);
+    left: 0%;
+    box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.15), 0 0 12px rgba(0, 212, 255, 0.6);
+    pointer-events: none;
+    transition: box-shadow 0.2s;
+}
+.scrubber:hover .scrubber-thumb {
+    box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.25), 0 0 16px rgba(0, 212, 255, 0.7);
+}
+
+/* 阶段刻度小标记 */
+.scrubber-ticks {
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 4px;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+.scrubber-tick {
+    position: absolute;
+    width: 2px; height: 8px;
+    background: var(--text-3);
+    top: -2px;
+    border-radius: 1px;
+}
+
+.speed-group {
+    display: flex;
+    gap: 3px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 3px;
+    border: 1px solid var(--line);
+}
+.speed-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.speed-btn:hover { color: var(--text-1); }
+.speed-btn.active {
+    background: var(--cyan);
+    color: var(--bg-deep);
+}
+
+/* ========== 阶段轨道 ========== */
+.timeline-strip {
+    margin-top: 14px;
+    padding: 14px 18px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+.timeline-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+}
+.timeline-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-2);
+    letter-spacing: 0.5px;
+}
+.timeline-axis-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    letter-spacing: 1.5px;
+}
+
+.timeline-stages {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+.tl-stage {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    text-align: left;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+.tl-stage.active {
+    background: var(--cyan-soft);
+    border-color: var(--cyan);
+}
+.tl-stage.passed {
+    border-color: rgba(0, 212, 255, 0.4);
+}
+.tl-stage-letter {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-3);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+    transition: color 0.3s;
+}
+.tl-stage.active .tl-stage-letter,
+.tl-stage.passed .tl-stage-letter { color: var(--cyan); }
+
+.tl-stage-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    transition: color 0.3s;
+    line-height: 1.3;
+}
+.tl-stage.active .tl-stage-name { color: var(--text-1); }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+    <div class="brand">
+        <div class="brand-mark">∫</div>
+        <div>
+            <div class="brand-title">SOC-ECC ACI 收敛轨迹播放器</div>
+            <div class="brand-sub">Capability-Indexed Alert Convergence · Manuscript-aligned v3.0</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="live-pill"><span class="live-dot"></span>READY TO PLAY</div>
+        <div class="clock" id="clock">--:--:--</div>
+    </div>
+</div>
+
+<!-- 主舞台 -->
+<div class="stage">
+
+    <!-- 左:曲线开关 -->
+    <div class="panel layers-panel">
+        <div class="panel-head">
+            <div class="panel-title-wrap">
+                <div class="panel-title">📈 曲线图层</div>
+                <div class="layer-note-trigger" aria-label="layer notes">
+                    i
+                    <div class="layer-note-tooltip">
+                        <div><strong>A(t)</strong>: 分析师侧告警负载,演示尺度,不是实际“条/日”。</div>
+                        <div><strong>T̂</strong>: 真实威胁基线,设为常数基线,演示尺度。</div>
+                        <div><strong>H_alert</strong>: 单告警决策熵,按 0–100 的视觉尺度显示。</div>
+                        <div><strong>Ω(t)</strong>: 工作负载熵,做了缩放,标成 scaled。</div>
+                        <div><strong>ΔI</strong>: 可观测信息差,也做了视觉缩放。</div>
+                        <div><strong>ACI</strong>: 按公式计算,但为了同轴显示绘图时放大 30 倍。</div>
+                        <div><strong>Judgment Accuracy</strong>: 右轴百分比,概念性判断准确率,不是实验计算值。</div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-tag">LAYERS</div>
+        </div>
+
+        <div class="curve-list" id="curveList">
+            <!-- 由 JS 注入 -->
+        </div>
+
+        <div class="now-stage">
+            <div class="now-stage-head">
+                <div class="now-stage-label">当前演化阶段</div>
+                <div class="now-stage-progress" id="nowProgress">0%</div>
+            </div>
+            <div class="now-stage-name" id="nowStageName">初始化中</div>
+            <div class="now-stage-desc" id="nowStageDesc">点击播放按钮开始演化叙事</div>
+        </div>
+    </div>
+
+    <!-- 右:图表 + 控制器 -->
+    <div class="panel chart-panel">
+        <div class="panel-head">
+            <div class="panel-title">⚡ 能力驱动的告警收敛演化</div>
+            <div class="panel-tag">EVOLUTION PLAYER</div>
+        </div>
+
+        <div class="chart-wrap">
+            <div class="chart-note-trigger" aria-label="scale note">
+                i
+                <div class="chart-note-tooltip">
+                    除右轴百分比外,曲线均为归一化/缩放演示值; ACI 按公式计算,绘图时放大 30 倍。
+                </div>
+            </div>
+            <svg id="chartSvg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                        <feMerge>
+                            <feMergeNode in="blur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <!-- 网格线 -->
+                <g id="gridGroup"></g>
+
+                <!-- 右轴刻度文字 -->
+                <g id="rightAxisGroup"></g>
+
+                <!-- 零轴(x轴) -->
+                <line id="zeroAxis" class="zero-axis" x1="90" y1="0" x2="940" y2="0"/>
+
+                <!-- 曲线 — 顺序决定 z-index, ACI 放最上。ACI 按原始公式计算,仅为同轴显示乘以 30。 -->
+                <g id="curveGroup">
+                    <path id="path-risk" class="curve-path" stroke="var(--c-risk)" stroke-width="2" stroke-dasharray="3 4"/>
+                    <path id="path-entropy" class="curve-path" stroke="var(--c-entropy)" stroke-width="2" stroke-dasharray="6 3 2 3"/>
+                    <path id="path-omega" class="curve-path" stroke="var(--c-omega)" stroke-width="2.1" stroke-dasharray="2 3"/>
+                    <path id="path-accuracy" class="curve-path" stroke="var(--c-accuracy)" stroke-width="2.2"/>
+                    <path id="path-total" class="curve-path" stroke="var(--c-total)" stroke-width="2.4"/>
+                    <path id="path-effective" class="curve-path" stroke="var(--c-effective)" stroke-width="2.4" stroke-dasharray="8 4"/>
+                    <path id="path-aci" class="curve-path" stroke="var(--c-aci)" stroke-width="3.2"/>
+                </g>
+
+                <!-- 末端发光点 -->
+                <g id="curveHeadsGroup">
+                    <circle id="head-risk" class="curve-head" r="4" fill="var(--c-risk)" filter="url(#glow)"/>
+                    <circle id="head-entropy" class="curve-head" r="4" fill="var(--c-entropy)" filter="url(#glow)"/>
+                    <circle id="head-omega" class="curve-head" r="4" fill="var(--c-omega)" filter="url(#glow)"/>
+                    <circle id="head-accuracy" class="curve-head" r="4" fill="var(--c-accuracy)" filter="url(#glow)"/>
+                    <circle id="head-total" class="curve-head" r="4" fill="var(--c-total)" filter="url(#glow)"/>
+                    <circle id="head-effective" class="curve-head" r="4" fill="var(--c-effective)" filter="url(#glow)"/>
+                    <circle id="head-aci" class="curve-head" r="5" fill="var(--c-aci)" filter="url(#glow)"/>
+                </g>
+
+                <!-- 阶段标记 -->
+                <g id="stageMarks"></g>
+
+                <!-- 扫描线 -->
+                <g id="scanGroup">
+                    <line id="scanLine" class="scan-line" y1="38" y2="448"/>
+                    <circle id="scanHead" class="scan-head" cy="448" r="4"/>
+                </g>
+
+                <!-- 轴标 -->
+                <text class="axis-label" x="500" y="502" text-anchor="middle">
+                    SOC-ECC Capability Index 𝓒
+                </text>
+                <text class="axis-label" x="975" y="260" text-anchor="middle" transform="rotate(90, 975, 260)" fill="#60a5fa">
+                    Judgment Accuracy (%)
+                </text>
+            </svg>
+        </div>
+
+        <!-- 播放控制条 -->
+        <div class="player">
+            <button class="btn-play" id="btnPlay" aria-label="play/pause">
+                <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 5h4v14H6zm8 0h4v14h-4z"/>
+                </svg>
+            </button>
+            <button class="btn-reset" id="btnReset" aria-label="reset">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/>
+                </svg>
+            </button>
+            <button class="btn-loop" id="btnLoop" aria-label="loop playback" title="循环播放">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 7h9.2l-2.1-2.1L15.5 3.5 20 8l-4.5 4.5-1.4-1.4L16.2 9H7c-1.7 0-3 1.3-3 3 0 .7.2 1.3.6 1.8L3.1 15.3C2.4 14.4 2 13.3 2 12c0-2.8 2.2-5 5-5zm10 10H7.8l2.1 2.1-1.4 1.4L4 16l4.5-4.5 1.4 1.4L7.8 15H17c1.7 0 3-1.3 3-3 0-.7-.2-1.3-.6-1.8l1.5-1.5c.7.9 1.1 2 1.1 3.3 0 2.8-2.2 5-5 5z"/>
+                </svg>
+                LOOP
+            </button>
+
+            <div class="scrubber-wrap">
+                <div class="scrubber-times">
+                    <span id="timeNow">𝓒 = 0.0</span>
+                    <span id="timeTotal">𝓒_max = 10.0</span>
+                </div>
+                <div class="scrubber" id="scrubber">
+                    <div class="scrubber-track">
+                        <div class="scrubber-fill" id="scrubberFill"></div>
+                    </div>
+                    <div class="scrubber-ticks" id="scrubberTicks"></div>
+                    <div class="scrubber-thumb" id="scrubberThumb"></div>
+                </div>
+            </div>
+
+            <div class="speed-group">
+                <button class="speed-btn" data-speed="0.2">0.2×</button>
+                <button class="speed-btn" data-speed="0.5">0.5×</button>
+                <button class="speed-btn active" data-speed="1">1×</button>
+                <button class="speed-btn" data-speed="2">2×</button>
+            </div>
+        </div>
+
+        <!-- 阶段轨道 -->
+        <div class="timeline-strip">
+            <div class="timeline-head">
+                <div class="timeline-title">演化里程碑</div>
+                <div class="timeline-axis-name">EVOLUTION MILESTONES · A → E</div>
+            </div>
+            <div class="timeline-stages" id="timelineStages"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+//================================================================
+// 配置
+//================================================================
+const CHART = {
+    vw: 1000, vh: 520,
+    plotL: 76, plotR: 946,        // x 范围
+    plotT: 38, plotB: 448,        // y 范围 (上→下)
+    xMin: 0, xMax: 10,
+    yLMin: -150, yLMax: 180,
+    yRMin: -83.33, yRMax: 100,
+};
+
+const POINTS = 900;
+const BASELINE = 25;
+const PEAK = 3.2;
+const PLAY_DURATION = 14;  // 1× 倍速下播放完整时长(秒)
+
+const STAGES = [
+    { id: 'A', x: 1.2, name: '萌芽期 Origin',
+      desc: '首个规模化部署切片已进入过载区,A(t) 高于 T̂,ACI 为负。' },
+    { id: 'B', x: 2.2, name: '规模化 Scale-up',
+      desc: '检测覆盖扩张快于关联规则成熟,误报被放大。' },
+    { id: 'C', x: 3.2, name: '峰值期 Peak',
+      desc: 'A(t) 远高于 T̂,ACI 进入负区间;H_alert 在假阳性主导下坍塌。' },
+    { id: 'D', x: 5.5, name: '收敛期 Convergence',
+      desc: '跨层关联开始压制冗余误报,A(t) 回落,ACI 从负值转向正值。' },
+    { id: 'E', x: 9.0, name: '稳态 Steady State',
+      desc: '分析师侧告警 A(t) 接近真实威胁基线 T̂,ACI 趋近 1。' },
+];
+
+const CURVES = [
+    { key: 'risk',      name: 'Observable Information Gap',     cn: '可观测信息差',
+      sym: 'ΔI',                  color: 'var(--c-risk)',      swatch: 'dotted',  axis: 'L',
+      note: 'ΔI: 可观测信息差,表示防守方相对真实威胁状态仍未消除的信息缺口;在本演示中做视觉缩放。' },
+    { key: 'total',     name: 'Analyst-facing Alert Burden', cn: '分析师侧告警量',
+      sym: 'A(t)',                color: 'var(--c-total)',     swatch: 'solid',   axis: 'L',
+      note: 'A(t): 分析师侧告警负载,这里使用演示尺度,不是实际“条/日”。' },
+    { key: 'effective', name: 'True Threat Baseline',    cn: '真实威胁基线',
+      sym: 'T̂',                  color: 'var(--c-effective)', swatch: 'dashed',  axis: 'L',
+      note: 'T̂: 真实威胁基线,表示可行动、需要 Tier-2/3 研判的业务相关威胁压力;本图中设为常数基线。' },
+    { key: 'entropy',   name: 'Per-alert Decision Entropy',cn: '单告警决策熵',
+      sym: 'H_alert',             color: 'var(--c-entropy)',   swatch: 'dashdot', axis: 'L',
+      note: 'H_alert: 单告警决策熵,用于表示每条告警本身的真假判断不确定性;按 0–100 的视觉尺度显示。' },
+    { key: 'omega',     name: 'Workload Entropy', cn: '工作负载熵',
+      sym: 'Ω(t), scaled',         color: 'var(--c-omega)',     swatch: 'dotted',  axis: 'L',
+      note: 'Ω(t): 工作负载熵,定义为 A(t)H_alert(t);本图中为便于同轴比较做了缩放。' },
+    { key: 'aci',       name: 'Alert Convergence Index', cn: '告警收敛指数',
+      sym: 'ACI, plotted ×30',    color: 'var(--c-aci)',       swatch: 'bold',    axis: 'L',
+      note: 'ACI: 按论文公式 1−|A(t)−T̂|/T̂ 计算;为与其他曲线同轴显示,绘图时放大 30 倍。' },
+    { key: 'accuracy',  name: 'Judgment Accuracy',   cn: '判断准确率',
+      sym: '%',                   color: 'var(--c-accuracy)',  swatch: 'solid',   axis: 'R',
+      note: 'Judgment Accuracy: 右轴百分比,用于概念性表达分析师判断质量变化;不是论文实验直接计算值。' },
+];
+
+//================================================================
+// 数学函数
+//================================================================
+function fRisk(x)      { return 105 * Math.exp(-0.35 * x) + 15; }
+function fBaseline(x)  { return BASELINE; }
+function fRawNoise(x)  { return 110 * Math.pow((x + 0.25) / PEAK, 1.2) * Math.exp(-1.25 * ((x + 0.25) / PEAK - 1)); }
+function fPenalty(x)   { return Math.exp(-0.2 * Math.pow(Math.max(0, x - 4), 2)); }
+function fNoise(x)     { return fRawNoise(x) * fPenalty(x); }
+function fTotal(x)     { return BASELINE + 40 * Math.exp(-0.9 * x) + fNoise(x); }
+function fEntropy(x)   {
+    return 78
+         - 38 * Math.exp(-Math.pow((x - PEAK) / 0.85, 2))
+         + 18 / (1 + Math.exp(-2.0 * (x - 5.6)));
+}
+function fOmega(x) {
+    return fTotal(x) * (fEntropy(x) / 100) * 1.2;
+}
+function fAccuracy(x)  {
+    const base = 45 + 53 / (1 + Math.exp(-2.0 * (x - 7.0)));
+    const crash = 30 * Math.exp(-1.5 * Math.pow(x - PEAK, 2));
+    return base - crash;
+}
+function fACI(x) {
+    return fACIraw(x) * 30;
+}
+function fACIraw(x) {
+    return 1 - Math.abs(fTotal(x) - BASELINE) / BASELINE;
+}
+
+const CALC = {
+    risk: fRisk, total: fTotal, effective: fBaseline,
+    entropy: fEntropy, omega: fOmega, aci: fACI, accuracy: fAccuracy,
+};
+
+//================================================================
+// 坐标映射
+//================================================================
+function xS(x) {
+    return CHART.plotL + (x - CHART.xMin) / (CHART.xMax - CHART.xMin) * (CHART.plotR - CHART.plotL);
+}
+function yLs(y) {
+    return CHART.plotB - (y - CHART.yLMin) / (CHART.yLMax - CHART.yLMin) * (CHART.plotB - CHART.plotT);
+}
+function yRs(y) {
+    return CHART.plotB - (y - CHART.yRMin) / (CHART.yRMax - CHART.yRMin) * (CHART.plotB - CHART.plotT);
+}
+
+//================================================================
+// 预计算曲线点
+//================================================================
+const data = {};
+CURVES.forEach(c => {
+    const pts = [];
+    for (let i = 0; i < POINTS; i++) {
+        const x = CHART.xMin + (CHART.xMax - CHART.xMin) * i / (POINTS - 1);
+        const y = CALC[c.key](x);
+        pts.push({ x, y, svgX: xS(x), svgY: c.axis === 'R' ? yRs(y) : yLs(y) });
+    }
+    data[c.key] = pts;
+});
+
+// 零轴位置 (基于左轴 0)
+const zeroY = yLs(0);
+document.getElementById('zeroAxis').setAttribute('y1', zeroY);
+document.getElementById('zeroAxis').setAttribute('y2', zeroY);
+
+//================================================================
+// 网格 + 右轴刻度
+//================================================================
+function buildGrid() {
+    const grid = document.getElementById('gridGroup');
+    // 水平网格(基于右轴的0/20/40/60/80/100)
+    [0, 20, 40, 60, 80, 100].forEach(v => {
+        const y = yRs(v);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'grid-line');
+        line.setAttribute('x1', CHART.plotL); line.setAttribute('x2', CHART.plotR);
+        line.setAttribute('y1', y); line.setAttribute('y2', y);
+        grid.appendChild(line);
+    });
+    // 垂直网格(每个整数 x)
+    for (let x = 1; x <= 9; x++) {
+        const sx = xS(x);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'grid-line');
+        line.setAttribute('x1', sx); line.setAttribute('x2', sx);
+        line.setAttribute('y1', CHART.plotT); line.setAttribute('y2', CHART.plotB);
+        grid.appendChild(line);
+    }
+
+    // 右轴刻度文字
+    const rAxis = document.getElementById('rightAxisGroup');
+    [0, 20, 40, 60, 80, 100].forEach(v => {
+        const y = yRs(v);
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        t.setAttribute('class', 'axis-text');
+        t.setAttribute('x', 955); t.setAttribute('y', y + 4);
+        t.setAttribute('fill', '#60a5fa');
+        t.textContent = v;
+        rAxis.appendChild(t);
+    });
+}
+buildGrid();
+
+//================================================================
+// 阶段标记
+//================================================================
+function buildStageMarks() {
+    const g = document.getElementById('stageMarks');
+    STAGES.forEach(s => {
+        const sx = xS(s.x);
+        const totalY = yLs(fTotal(s.x));
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('class', 'stage-mark hidden');
+        group.setAttribute('id', 'stage-' + s.id);
+
+        // 虚线
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'stage-mark-line');
+        line.setAttribute('x1', sx); line.setAttribute('x2', sx);
+        line.setAttribute('y1', zeroY); line.setAttribute('y2', totalY);
+        group.appendChild(line);
+
+        // 标记点
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('class', 'stage-mark-dot');
+        dot.setAttribute('cx', sx); dot.setAttribute('cy', totalY);
+        dot.setAttribute('r', 5);
+        group.appendChild(dot);
+
+        // 字母背景圆
+        const letterBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        letterBg.setAttribute('class', 'stage-mark-letter-bg');
+        letterBg.setAttribute('cx', sx); letterBg.setAttribute('cy', totalY - 18);
+        letterBg.setAttribute('r', 10);
+        group.appendChild(letterBg);
+
+        // 字母
+        const letter = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        letter.setAttribute('class', 'stage-mark-letter');
+        letter.setAttribute('x', sx); letter.setAttribute('y', totalY - 14);
+        letter.setAttribute('text-anchor', 'middle');
+        letter.textContent = s.id;
+        group.appendChild(letter);
+
+        // 名称(底部)
+        const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        name.setAttribute('class', 'stage-mark-name');
+        name.setAttribute('x', sx); name.setAttribute('y', 538);
+        name.setAttribute('text-anchor', 'middle');
+        name.textContent = s.name.split(' ')[0]; // 取中文部分
+        group.appendChild(name);
+
+        g.appendChild(group);
+    });
+}
+buildStageMarks();
+
+//================================================================
+// 曲线开关列表 (左侧)
+//================================================================
+function buildCurveList() {
+    const list = document.getElementById('curveList');
+    CURVES.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'curve-row';
+        row.dataset.key = c.key;
+        row.innerHTML = `
+            <div class="curve-swatch ${c.swatch} ${c.swatch === 'bold' ? 'bold' : ''}"
+                 style="color: ${c.color};"></div>
+            <div class="curve-info">
+                <div class="curve-name">${c.cn}</div>
+                <div class="curve-sym">${c.name} · ${c.sym}</div>
+            </div>
+            <div class="curve-value" style="color: ${c.color};" id="cv-${c.key}">—</div>
+            <div class="curve-tooltip"><strong>${c.cn}</strong><br>${c.note}</div>
+        `;
+        row.addEventListener('click', () => {
+            state.visible[c.key] = !state.visible[c.key];
+            row.classList.toggle('off', !state.visible[c.key]);
+            render();
+        });
+        row.addEventListener('pointerenter', () => row.classList.add('show-tip'));
+        row.addEventListener('pointerleave', () => row.classList.remove('show-tip'));
+        list.appendChild(row);
+    });
+}
+buildCurveList();
+
+//================================================================
+// 阶段轨道 + 进度刻度
+//================================================================
+function buildTimeline() {
+    const tl = document.getElementById('timelineStages');
+    STAGES.forEach(s => {
+        const el = document.createElement('div');
+        el.className = 'tl-stage';
+        el.id = 'tl-' + s.id;
+        el.innerHTML = `
+            <div class="tl-stage-letter">${s.id} · 𝓒 = ${s.x.toFixed(1)}</div>
+            <div class="tl-stage-name">${s.name}</div>
+        `;
+        tl.appendChild(el);
+    });
+    // scrubber 上的刻度
+    const ticks = document.getElementById('scrubberTicks');
+    STAGES.forEach(s => {
+        const t = document.createElement('div');
+        t.className = 'scrubber-tick';
+        t.style.left = (s.x / 10 * 100) + '%';
+        ticks.appendChild(t);
+    });
+}
+buildTimeline();
+
+//================================================================
+// 全局状态 + 主渲染
+//================================================================
+const state = {
+    progress: 0,         // 0..1
+    playing: false,
+    loop: false,
+    speed: 1,
+    lastFrame: 0,
+    visible: {
+        risk: true, total: true, effective: true,
+        entropy: true, omega: true, aci: true, accuracy: true,
+    },
+};
+
+function buildPathFromPoints(pts, cutoff) {
+    const end = Math.min(cutoff, pts.length - 1);
+    if (end < 1) {
+        const p = pts[0];
+        return `M${p.svgX.toFixed(2)},${p.svgY.toFixed(2)}`;
+    }
+    let d = `M${pts[0].svgX.toFixed(2)},${pts[0].svgY.toFixed(2)}`;
+    for (let i = 1; i < end; i++) {
+        const p = pts[i];
+        const next = pts[i + 1];
+        const mx = (p.svgX + next.svgX) / 2;
+        const my = (p.svgY + next.svgY) / 2;
+        d += ` Q${p.svgX.toFixed(2)},${p.svgY.toFixed(2)} ${mx.toFixed(2)},${my.toFixed(2)}`;
+    }
+    const last = pts[end];
+    d += ` L${last.svgX.toFixed(2)},${last.svgY.toFixed(2)}`;
+    return d;
+}
+
+function render() {
+    const cutoff = Math.floor((POINTS - 1) * state.progress);
+    const currentX = CHART.xMin + (CHART.xMax - CHART.xMin) * state.progress;
+
+    // 曲线路径
+    CURVES.forEach(c => {
+        const pathEl = document.getElementById('path-' + c.key);
+        const headEl = document.getElementById('head-' + c.key);
+        const visible = state.visible[c.key];
+
+        pathEl.classList.toggle('hidden', !visible);
+        headEl.classList.toggle('hidden', !visible || state.progress < 0.001);
+
+        if (visible) {
+            pathEl.setAttribute('d', buildPathFromPoints(data[c.key], cutoff));
+            if (cutoff > 0) {
+                const last = data[c.key][cutoff];
+                headEl.setAttribute('cx', last.svgX);
+                headEl.setAttribute('cy', last.svgY);
+            }
+        }
+
+        // 值显示
+        const cvEl = document.getElementById('cv-' + c.key);
+        if (state.progress > 0) {
+            const val = CALC[c.key](currentX);
+            let display;
+            if (c.key === 'accuracy') display = val.toFixed(0) + '%';
+            else if (c.key === 'aci') display = fACIraw(currentX).toFixed(2);
+            else display = Math.round(val);
+            cvEl.textContent = display;
+        } else {
+            cvEl.textContent = '—';
+        }
+    });
+
+    // 扫描线
+    const scanX = xS(currentX);
+    document.getElementById('scanLine').setAttribute('x1', scanX);
+    document.getElementById('scanLine').setAttribute('x2', scanX);
+    document.getElementById('scanHead').setAttribute('cx', scanX);
+    document.getElementById('scanGroup').style.opacity = state.progress > 0 && state.progress < 1 ? 1 : 0;
+
+    // 阶段标记浮现
+    STAGES.forEach(s => {
+        const el = document.getElementById('stage-' + s.id);
+        const reached = currentX >= s.x - 0.05;
+        el.classList.toggle('hidden', !reached);
+    });
+
+    // 阶段轨道高亮
+    let activeStage = null;
+    for (let i = STAGES.length - 1; i >= 0; i--) {
+        if (currentX >= STAGES[i].x - 0.05) { activeStage = STAGES[i]; break; }
+    }
+    STAGES.forEach(s => {
+        const el = document.getElementById('tl-' + s.id);
+        const passed = currentX > s.x + 0.05;
+        const active = activeStage && activeStage.id === s.id;
+        el.classList.toggle('active', active);
+        el.classList.toggle('passed', passed && !active);
+    });
+
+    // 当前阶段卡片
+    const nowName = document.getElementById('nowStageName');
+    const nowDesc = document.getElementById('nowStageDesc');
+    if (activeStage) {
+        nowName.textContent = `${activeStage.id} · ${activeStage.name}`;
+        nowDesc.textContent = activeStage.desc;
+    } else if (state.progress === 0) {
+        nowName.textContent = '准备就绪';
+        nowDesc.textContent = '点击播放按钮开始演化叙事 · 或拖动进度条任意定位';
+    } else {
+        nowName.textContent = '萌芽前 Pre-Origin';
+        nowDesc.textContent = '能力尚未启动,系统处于冷启动初始态。';
+    }
+
+    // 进度UI
+    document.getElementById('nowProgress').textContent = (state.progress * 100).toFixed(0) + '%';
+    document.getElementById('scrubberFill').style.width = (state.progress * 100) + '%';
+    document.getElementById('scrubberThumb').style.left = (state.progress * 100) + '%';
+    document.getElementById('timeNow').textContent = '𝓒 = ' + currentX.toFixed(1);
+}
+
+//================================================================
+// 播放循环
+//================================================================
+function loop(now) {
+    requestAnimationFrame(loop);
+    if (!state.playing) { state.lastFrame = now; return; }
+    if (!state.lastFrame) state.lastFrame = now;
+    const dt = (now - state.lastFrame) / 1000;
+    state.lastFrame = now;
+    state.progress += dt * state.speed / PLAY_DURATION;
+    if (state.progress >= 1) {
+        if (state.loop) {
+            state.progress = state.progress % 1;
+            state.lastFrame = now;
+        } else {
+            state.progress = 1;
+            pause();
+        }
+    }
+    render();
+}
+
+function play() {
+    if (state.progress >= 1) state.progress = 0;
+    state.playing = true;
+    state.lastFrame = 0;
+    document.getElementById('btnPlay').classList.add('playing');
+}
+function pause() {
+    state.playing = false;
+    document.getElementById('btnPlay').classList.remove('playing');
+}
+function reset() {
+    pause();
+    state.progress = 0;
+    render();
+}
+
+//================================================================
+// 事件
+//================================================================
+document.getElementById('btnPlay').addEventListener('click', () => {
+    state.playing ? pause() : play();
+});
+document.getElementById('btnReset').addEventListener('click', reset);
+document.getElementById('btnLoop').addEventListener('click', () => {
+    state.loop = !state.loop;
+    document.getElementById('btnLoop').classList.toggle('on', state.loop);
+});
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.speed = parseFloat(btn.dataset.speed);
+    });
+});
+
+// scrubber 拖动
+const scrubber = document.getElementById('scrubber');
+let dragging = false;
+function setProgressFromEvent(e) {
+    const rect = scrubber.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    state.progress = Math.max(0, Math.min(1, x / rect.width));
+    render();
+}
+scrubber.addEventListener('mousedown', (e) => {
+    dragging = true;
+    pause();
+    setProgressFromEvent(e);
+});
+document.addEventListener('mousemove', (e) => { if (dragging) setProgressFromEvent(e); });
+document.addEventListener('mouseup', () => { dragging = false; });
+scrubber.addEventListener('touchstart', (e) => {
+    dragging = true; pause(); setProgressFromEvent(e);
+});
+document.addEventListener('touchmove', (e) => { if (dragging) setProgressFromEvent(e); });
+document.addEventListener('touchend', () => { dragging = false; });
+
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); state.playing ? pause() : play(); }
+    if (e.code === 'KeyR') { reset(); }
+    if (e.code === 'ArrowLeft') { state.progress = Math.max(0, state.progress - 0.05); render(); }
+    if (e.code === 'ArrowRight') { state.progress = Math.min(1, state.progress + 0.05); render(); }
+});
+
+//================================================================
+// 时钟
+//================================================================
+function tickClock() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    document.getElementById('clock').textContent =
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+setInterval(tickClock, 1000); tickClock();
+
+//================================================================
+// 启动
+//================================================================
+render();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
