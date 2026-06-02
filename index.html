@@ -888,6 +888,437 @@ body {
     line-height: 1.3;
 }
 .tl-stage.active .tl-stage-name { color: var(--text-1); }
+
+/* ========== Responsive layout overrides ==========
+   Keep these rules at the end of the stylesheet so they win over the
+   desktop defaults above. */
+@media (max-width: 1100px) {
+    html, body {
+        height: auto;
+        min-height: 100%;
+    }
+
+    body {
+        overflow-x: hidden;
+    }
+
+    .topbar {
+        padding: 12px 16px;
+        gap: 12px;
+    }
+
+    .brand {
+        min-width: 0;
+    }
+
+    .brand-title {
+        font-size: clamp(16px, 2.8vw, 19px);
+        line-height: 1.25;
+    }
+
+    .brand-sub {
+        font-size: 10px;
+        letter-spacing: 1px;
+        white-space: normal;
+    }
+
+    .clock {
+        display: none;
+    }
+
+    .stage {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+        padding: 14px 16px 22px;
+        min-height: auto;
+        width: 100%;
+    }
+
+    .panel {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .panel-head {
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+    }
+
+    .layers-panel {
+        min-height: auto;
+    }
+
+    .curve-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .curve-row {
+        min-width: 0;
+        padding: 11px 12px;
+        gap: 9px;
+    }
+
+    .curve-name {
+        font-size: 13px;
+    }
+
+    .curve-sym {
+        font-size: 10px;
+    }
+
+    .curve-value {
+        min-width: 34px;
+        font-size: 13px;
+    }
+
+    .curve-swatch {
+        width: 24px;
+    }
+
+    .curve-row:hover {
+        transform: none;
+    }
+
+    .curve-tooltip {
+        left: 0;
+        top: calc(100% + 8px);
+        transform: translateY(-4px);
+        width: min(340px, calc(100vw - 48px));
+    }
+
+    .curve-row:hover .curve-tooltip,
+    .curve-row.show-tip .curve-tooltip {
+        transform: translateY(0);
+    }
+
+    .layer-note-tooltip,
+    .chart-note-tooltip {
+        width: min(420px, calc(100vw - 48px));
+    }
+
+    .now-stage {
+        margin-top: 12px;
+        padding: 14px;
+    }
+
+    .now-stage-name {
+        font-size: 16px;
+    }
+
+    .now-stage-desc {
+        font-size: 12px;
+    }
+
+    .chart-panel {
+        min-width: 0;
+    }
+
+    .chart-wrap {
+        padding: 0;
+        margin-bottom: 12px;
+    }
+
+    #chartSvg {
+        height: clamp(320px, 52vw, 480px);
+        min-height: 320px;
+    }
+
+    .player {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 11px 12px;
+    }
+
+    .btn-play {
+        width: 46px;
+        height: 46px;
+    }
+
+    .btn-reset,
+    .btn-loop {
+        height: 38px;
+    }
+
+    .scrubber-wrap {
+        order: 4;
+        flex: 1 0 100%;
+    }
+
+    .speed-group {
+        margin-left: auto;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .speed-btn {
+        min-width: 42px;
+        font-size: 12px;
+        padding: 7px 9px;
+    }
+
+    .timeline-strip {
+        margin-top: 12px;
+        padding: 12px;
+    }
+
+    .timeline-stages {
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tl-stage {
+        padding: 9px 10px;
+    }
+}
+
+@media (max-width: 640px) {
+    .topbar {
+        position: relative;
+        align-items: flex-start;
+        padding: 12px;
+    }
+
+    .brand-mark {
+        width: 34px;
+        height: 34px;
+    }
+
+    .brand-title {
+        font-size: 16px;
+    }
+
+    .brand-sub {
+        display: none;
+    }
+
+    .topbar-right {
+        align-self: center;
+    }
+
+    .live-pill {
+        padding: 5px 9px;
+        font-size: 9px;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .stage {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .chart-panel {
+        order: 1;
+    }
+
+    .layers-panel {
+        order: 2;
+    }
+
+    .panel {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
+    .panel-title {
+        font-size: 15px;
+    }
+
+    .panel-tag {
+        display: none;
+    }
+
+    .chart-note-trigger {
+        top: 8px;
+        right: 8px;
+    }
+
+    #chartSvg {
+        height: clamp(270px, 74vw, 340px);
+        min-height: 270px;
+    }
+
+    .axis-text {
+        font-size: 14px;
+    }
+
+    .axis-label {
+        font-size: 14px;
+    }
+
+    .stage-mark-letter {
+        font-size: 15px;
+    }
+
+    .stage-mark-name {
+        display: none;
+    }
+
+    .player {
+        padding: 10px;
+        align-items: center;
+    }
+
+    .btn-play {
+        width: 44px;
+        height: 44px;
+    }
+
+    .btn-loop {
+        width: 44px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .btn-loop svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .btn-loop {
+        font-size: 0;
+    }
+
+    .speed-group {
+        width: 100%;
+        margin-left: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .speed-btn {
+        min-height: 36px;
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+
+    .scrubber-wrap {
+        order: 3;
+        margin-top: 2px;
+    }
+
+    .scrubber-times {
+        font-size: 11px;
+    }
+
+    .scrubber {
+        height: 28px;
+    }
+
+    .scrubber-track {
+        height: 5px;
+    }
+
+    .scrubber-thumb {
+        width: 18px;
+        height: 18px;
+    }
+
+    .timeline-head {
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .timeline-axis-name {
+        display: none;
+    }
+
+    .timeline-stages {
+        grid-template-columns: 1fr;
+        overflow-x: visible;
+        gap: 7px;
+    }
+
+    .tl-stage {
+        padding: 10px 11px;
+    }
+
+    .tl-stage-letter {
+        font-size: 11px;
+        margin-bottom: 1px;
+    }
+
+    .tl-stage-name {
+        font-size: 13px;
+    }
+
+    .curve-list {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .curve-row {
+        padding: 11px;
+    }
+
+    .curve-name {
+        font-size: 14px;
+    }
+
+    .curve-sym {
+        font-size: 11px;
+    }
+
+    .curve-value {
+        min-width: 44px;
+        font-size: 14px;
+    }
+
+    .now-stage {
+        padding: 13px;
+    }
+
+    .now-stage-name {
+        font-size: 16px;
+    }
+
+    .now-stage-desc {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 420px) {
+    .chart-note-tooltip,
+    .layer-note-tooltip,
+    .curve-tooltip {
+        width: calc(100vw - 32px);
+    }
+
+    #chartSvg {
+        height: 260px;
+        min-height: 260px;
+    }
+
+    .panel-title {
+        font-size: 14px;
+    }
+
+    .live-pill {
+        max-width: 112px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .topbar {
+        position: relative;
+    }
+
+    #chartSvg {
+        height: clamp(250px, 58vh, 360px);
+        min-height: 250px;
+    }
+
+    .timeline-stages {
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        overflow-x: auto;
+    }
+}
 </style>
 </head>
 <body>
